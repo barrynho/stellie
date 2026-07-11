@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import SignatureCanvas from '../components/SignatureCanvas';
-import { Heart, FileCheck, Mail, Phone, ShieldAlert, XCircle } from 'lucide-react';
+import { Heart, FileCheck, Mail, Phone, ShieldAlert, XCircle, Download } from 'lucide-react';
 
 const SignContract = () => {
   const [searchParams] = useSearchParams();
@@ -22,6 +22,7 @@ const SignContract = () => {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submittedDecision, setSubmittedDecision] = useState(null);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
   useEffect(() => {
     const fetchContract = async () => {
@@ -88,16 +89,60 @@ const SignContract = () => {
         })
       });
 
-      const data = await response.json();
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        data = { message: 'Réponse inattendue du serveur.' };
+      }
+
       if (!response.ok) {
         throw new Error(data.message || 'Erreur lors du traitement du contrat.');
       }
+
       setSubmittedDecision(selectedDecision);
     } catch (err) {
       setError(err.message || 'Une erreur est survenue.');
     } finally {
       setSubmitLoading(false);
     }
+  };
+
+  const handleDownloadPDF = () => {
+    if (!contract) return;
+
+    setPdfGenerating(true);
+    const element = document.getElementById('sign-contract-download');
+    if (!element) {
+      setPdfGenerating(false);
+      setError('Impossible de générer le PDF à partir du contenu du contrat.');
+      return;
+    }
+
+    const opt = {
+      margin: 0.3,
+      filename: `Contrat_Amour_${contract.numero}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2.5, useCORS: true, logging: false },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    script.onload = () => {
+      window.html2pdf().from(element).set(opt).save()
+        .then(() => setPdfGenerating(false))
+        .catch((err) => {
+          console.error(err);
+          setPdfGenerating(false);
+          setError('Erreur lors du téléchargement du PDF.');
+        });
+    };
+    script.onerror = () => {
+      setError("Erreur lors du chargement de l'outil PDF.");
+      setPdfGenerating(false);
+    };
+    document.body.appendChild(script);
   };
 
   const formatDate = (dateStr) => {
@@ -149,6 +194,24 @@ const SignContract = () => {
               ? `Vous avez accepté le contrat de ${contract?.prenom_createur} ${contract?.nom_createur}. Le créateur voit maintenant l’état “Accepté”.`
               : `Vous avez refusé le contrat de ${contract?.prenom_createur} ${contract?.nom_createur}. Le créateur voit maintenant l’état “Refusé”.`}
           </p>
+          {isAccepted && (
+            <div style={{ marginBottom: '1rem' }}>
+              <button type="button" className="btn btn-gold" onClick={handleDownloadPDF} disabled={pdfGenerating}>
+                <Download size={16} /> {pdfGenerating ? 'Génération du PDF...' : 'Télécharger le contrat'}
+              </button>
+            </div>
+          )}
+          <div id="sign-contract-download" style={{ position: 'absolute', left: '-9999px', top: '0', width: '794px', background: '#fff', color: '#111', padding: '24px', textAlign: 'left' }}>
+            <h2 style={{ textAlign: 'center', fontSize: '1.5rem', marginBottom: '0.5rem' }}>Contrat d'Amour</h2>
+            <p style={{ textAlign: 'center', marginBottom: '1rem' }}>Contrat N° : {contract?.numero}</p>
+            <p><strong>Créé par :</strong> {contract?.prenom_createur} {contract?.nom_createur}</p>
+            <p><strong>Partenaire :</strong> {prenom} {nom}</p>
+            <p><strong>Date de début de la relation :</strong> {formatDate(contract?.date_relation)}</p>
+            <p><strong>Clauses :</strong></p>
+            <div style={{ whiteSpace: 'pre-wrap' }}>{contract?.clauses}</div>
+            <p style={{ marginTop: '1.5rem' }}><strong>Signature du partenaire :</strong></p>
+            {signature ? <img src={signature} alt="Signature du partenaire" style={{ maxHeight: '80px', maxWidth: '220px', border: '1px solid #ddd', padding: '8px' }} /> : <p>Signature non fournie</p>}
+          </div>
           <a href="/" className="btn btn-secondary">Retour à l'accueil</a>
         </div>
       </div>

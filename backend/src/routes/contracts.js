@@ -194,27 +194,48 @@ router.post('/token/:token/decision', async (req, res) => {
     await pool.query('BEGIN');
 
     if (isAccepted) {
-      await pool.query(
-        `INSERT INTO partner_signatures (
-          contract_id, nom, prenom, date_naissance, email, telephone, signature
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (contract_id) DO UPDATE SET
-          nom = EXCLUDED.nom,
-          prenom = EXCLUDED.prenom,
-          date_naissance = EXCLUDED.date_naissance,
-          email = EXCLUDED.email,
-          telephone = EXCLUDED.telephone,
-          signature = EXCLUDED.signature`,
-        [
-          contract.id,
-          nom,
-          prenom,
-          date_naissance,
-          email,
-          telephone || null,
-          signature
-        ]
+      const existingPartner = await pool.query(
+        'SELECT id FROM partner_signatures WHERE contract_id = $1',
+        [contract.id]
       );
+
+      if (existingPartner.rows.length > 0) {
+        await pool.query(
+          `UPDATE partner_signatures
+           SET nom = $2,
+               prenom = $3,
+               date_naissance = $4,
+               email = $5,
+               telephone = $6,
+               signature = $7,
+               date_signature = NOW()
+           WHERE contract_id = $1`,
+          [
+            contract.id,
+            nom,
+            prenom,
+            date_naissance,
+            email,
+            telephone || null,
+            signature
+          ]
+        );
+      } else {
+        await pool.query(
+          `INSERT INTO partner_signatures (
+            contract_id, nom, prenom, date_naissance, email, telephone, signature, date_signature
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
+          [
+            contract.id,
+            nom,
+            prenom,
+            date_naissance,
+            email,
+            telephone || null,
+            signature
+          ]
+        );
+      }
     }
 
     await pool.query(
