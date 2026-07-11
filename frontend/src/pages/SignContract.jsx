@@ -213,17 +213,19 @@ const SignContract = () => {
               </button>
             </div>
           )}
-          <div id="sign-contract-download" style={{ position: 'fixed', left: '0', top: '0', width: '794px', opacity: 0, pointerEvents: 'none', zIndex: -9999, background: '#fff', color: '#111', padding: '24px', textAlign: 'left' }}>
-            <h2 style={{ textAlign: 'center', fontSize: '1.5rem', marginBottom: '0.5rem' }}>Contrat d'Amour</h2>
-            <p style={{ textAlign: 'center', marginBottom: '1rem' }}>Contrat N° : {contract?.numero}</p>
-            <p><strong>Créé par :</strong> {contract?.prenom_createur} {contract?.nom_createur}</p>
-            <p><strong>Partenaire :</strong> {prenom} {nom}</p>
-            <p><strong>Date de début de la relation :</strong> {formatDate(contract?.date_relation)}</p>
-            <p><strong>Clauses :</strong></p>
-            <div style={{ whiteSpace: 'pre-wrap' }}>{contract?.clauses}</div>
-            <p style={{ marginTop: '1.5rem' }}><strong>Signature du partenaire :</strong></p>
-            {signature ? <img src={signature} alt="Signature du partenaire" style={{ maxHeight: '80px', maxWidth: '220px', border: '1px solid #ddd', padding: '8px' }} /> : <p>Signature non fournie</p>}
-          </div>
+          <div style={{ height: 0, overflow: 'hidden' }}>
+  <div id="sign-contract-download" style={{ width: '794px', background: '#fff', color: '#111', padding: '24px', textAlign: 'left' }}>
+    <h2 style={{ textAlign: 'center', fontSize: '1.5rem', marginBottom: '0.5rem' }}>Contrat d'Amour</h2>
+    <p style={{ textAlign: 'center', marginBottom: '1rem' }}>Contrat N° : {contract?.numero}</p>
+    <p><strong>Créé par :</strong> {contract?.prenom_createur} {contract?.nom_createur}</p>
+    <p><strong>Partenaire :</strong> {prenom} {nom}</p>
+    <p><strong>Date de début de la relation :</strong> {formatDate(contract?.date_relation)}</p>
+    <p><strong>Clauses :</strong></p>
+    <div style={{ whiteSpace: 'pre-wrap' }}>{contract?.clauses}</div>
+    <p style={{ marginTop: '1.5rem' }}><strong>Signature du partenaire :</strong></p>
+    {signature ? <img src={signature} alt="Signature du partenaire" style={{ maxHeight: '80px', maxWidth: '220px', border: '1px solid #ddd', padding: '8px' }} /> : <p>Signature non fournie</p>}
+  </div>
+</div>
           <a href="/" className="btn btn-secondary">Retour à l'accueil</a>
         </div>
       </div>
