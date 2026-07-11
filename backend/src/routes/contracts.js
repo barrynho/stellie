@@ -141,7 +141,7 @@ router.get('/token/:token', async (req, res) => {
     let partnerInfo = null;
     if (publicContract.decision === 'accepted') {
       const partnerRes = await pool.query(
-        'SELECT nom, prenom, date_naissance, email, telephone, date_signature FROM partner_signatures WHERE contract_id = $1',
+        'SELECT nom, prenom, date_naissance, email, telephone, signature, date_signature FROM partner_signatures WHERE contract_id = $1',
         [publicContract.id]
       );
       if (partnerRes.rows.length > 0) {
@@ -193,6 +193,22 @@ router.post('/token/:token/decision', async (req, res) => {
     const nextStatus = decision === 'accepted' ? 'Signe' : 'En attente';
 
     await pool.query('UPDATE contracts SET statut = $1 WHERE id = $2', [nextStatus, contract.id]);
+
+    if (isAccepted) {
+      await pool.query(
+        `INSERT INTO partner_signatures (contract_id, nom, prenom, date_naissance, email, telephone, signature)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (contract_id) DO UPDATE SET
+           nom = EXCLUDED.nom,
+           prenom = EXCLUDED.prenom,
+           date_naissance = EXCLUDED.date_naissance,
+           email = EXCLUDED.email,
+           telephone = EXCLUDED.telephone,
+           signature = EXCLUDED.signature,
+           date_signature = TIMEZONE('utc'::text, NOW())`,
+        [contract.id, nom, prenom, date_naissance, email, telephone || null, signature]
+      );
+    }
 
     res.json({
       message: isAccepted ? 'Contrat accepté avec succès.' : 'Contrat refusé avec succès.',
