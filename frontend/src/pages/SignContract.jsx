@@ -306,7 +306,7 @@ const SignContract = () => {
             <label htmlFor="p_tel">Téléphone (optionnel)</label>
             <div style={{ position: 'relative' }}>
               <Phone size={16} style={{ position: 'absolute', left: '12px', top: '14px', color: 'var(--text-muted)' }} />
-              <input id="p_tel" type="tel" className="form-control" placeholder="+33 6 00 00 00 00" value={telephone} onChange={(e) => setTelephone(e.target.value)} style={{ paddingLeft: '2.5rem', width: '100%' }} />
+              <input id="p_tel" type="tel" className="form-control" placeholder="+241 06 00 00 00" value={telephone} onChange={(e) => setTelephone(e.target.value)} style={{ paddingLeft: '2.5rem', width: '100%' }} />
             </div>
           </div>
 

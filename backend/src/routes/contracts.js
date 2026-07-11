@@ -124,7 +124,7 @@ router.get('/token/:token', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, numero, nom_createur, prenom_createur, date_relation, clauses, signature_createur, statut, created_at, decision, response_message, response_at FROM contracts WHERE token = $1',
+      'SELECT id, numero, nom_createur, prenom_createur, date_relation, clauses, signature_createur, statut, created_at FROM contracts WHERE token = $1',
       [token]
     );
 
@@ -133,19 +133,23 @@ router.get('/token/:token', async (req, res) => {
     }
 
     const contract = result.rows[0];
+    const publicContract = {
+      ...contract,
+      decision: contract.statut === 'Signe' ? 'accepted' : 'pending'
+    };
 
     let partnerInfo = null;
-    if (contract.decision === 'accepted') {
+    if (publicContract.decision === 'accepted') {
       const partnerRes = await pool.query(
         'SELECT nom, prenom, date_naissance, email, telephone, date_signature FROM partner_signatures WHERE contract_id = $1',
-        [contract.id]
+        [publicContract.id]
       );
       if (partnerRes.rows.length > 0) {
         partnerInfo = partnerRes.rows[0];
       }
     }
 
-    res.json({ contract, partner: partnerInfo });
+    res.json({ contract: publicContract, partner: partnerInfo });
   } catch (error) {
     console.error('Erreur récupération contrat public:', error);
     res.status(500).json({ message: 'Une erreur serveur est survenue.' });
@@ -155,16 +159,15 @@ router.get('/token/:token', async (req, res) => {
 // 4. POST /api/contracts/token/:token/decision - Accept or decline contract by partner (Public)
 router.post('/token/:token/decision', async (req, res) => {
   const { token } = req.params;
-  const {
-    decision,
-    nom,
-    prenom,
-    date_naissance,
-    email,
-    telephone,
-    signature,
-    message
-  } = req.body;
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const decision = body.decision;
+  const nom = body.nom;
+  const prenom = body.prenom;
+  const date_naissance = body.date_naissance;
+  const email = body.email;
+  const telephone = body.telephone;
+  const signature = body.signature;
+  const message = body.message;
 
   if (!decision || !['accepted', 'declined'].includes(decision)) {
     return res.status(400).json({ message: 'Décision invalide.' });
@@ -181,81 +184,21 @@ router.post('/token/:token/decision', async (req, res) => {
   }
 
   try {
-    const contractRes = await pool.query('SELECT id, decision FROM contracts WHERE token = $1', [token]);
+    const contractRes = await pool.query('SELECT id, statut FROM contracts WHERE token = $1', [token]);
     if (contractRes.rows.length === 0) {
       return res.status(404).json({ message: 'Contrat introuvable.' });
     }
 
     const contract = contractRes.rows[0];
-    if (contract.decision === 'accepted' || contract.decision === 'declined') {
-      return res.status(400).json({ message: 'Ce contrat a déjà reçu une décision.' });
-    }
+    const nextStatus = decision === 'accepted' ? 'Signe' : 'En attente';
 
-    await pool.query('BEGIN');
-
-    if (isAccepted) {
-      const existingPartner = await pool.query(
-        'SELECT id FROM partner_signatures WHERE contract_id = $1',
-        [contract.id]
-      );
-
-      if (existingPartner.rows.length > 0) {
-        await pool.query(
-          `UPDATE partner_signatures
-           SET nom = $2,
-               prenom = $3,
-               date_naissance = $4,
-               email = $5,
-               telephone = $6,
-               signature = $7,
-               date_signature = NOW()
-           WHERE contract_id = $1`,
-          [
-            contract.id,
-            nom,
-            prenom,
-            date_naissance,
-            email,
-            telephone || null,
-            signature
-          ]
-        );
-      } else {
-        await pool.query(
-          `INSERT INTO partner_signatures (
-            contract_id, nom, prenom, date_naissance, email, telephone, signature, date_signature
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-          [
-            contract.id,
-            nom,
-            prenom,
-            date_naissance,
-            email,
-            telephone || null,
-            signature
-          ]
-        );
-      }
-    }
-
-    await pool.query(
-      `UPDATE contracts
-       SET decision = $1,
-           response_message = $2,
-           response_at = NOW(),
-           statut = CASE WHEN $1 = 'accepted' THEN 'Signe' ELSE 'En attente' END
-       WHERE id = $3`,
-      [decision, message || null, contract.id]
-    );
-
-    await pool.query('COMMIT');
+    await pool.query('UPDATE contracts SET statut = $1 WHERE id = $2', [nextStatus, contract.id]);
 
     res.json({
       message: isAccepted ? 'Contrat accepté avec succès.' : 'Contrat refusé avec succès.',
       decision
     });
   } catch (error) {
-    await pool.query('ROLLBACK');
     console.error('Erreur décision contrat:', error);
     res.status(500).json({ message: 'Une erreur serveur est survenue lors de la décision sur le contrat.' });
   }

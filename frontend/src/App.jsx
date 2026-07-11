@@ -10,6 +10,27 @@ import ContractDetails from './pages/ContractDetails';
 import { Heart } from 'lucide-react';
 import './App.css';
 
+const PublicOnlyRoute = ({ children }) => {
+  const { token, loading } = useContext(AuthContext);
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div className="card-icon" style={{ animation: 'pulse 1.5s infinite', marginBottom: '1rem' }}>
+          <Heart size={32} fill="currentColor" />
+        </div>
+        <p>Vérification de la session...</p>
+      </div>
+    );
+  }
+
+  if (token) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
 // Protected Route wrapper component
 const ProtectedRoute = ({ children }) => {
   const { token, loading } = useContext(AuthContext);
@@ -98,8 +119,8 @@ function App() {
             />
 
             {/* Public Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
+            <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
             <Route path="/signer" element={<SignContract />} />
 
             {/* Fallback Redirect */}

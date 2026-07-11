@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS contracts (
     clauses TEXT NOT NULL,
     signature_createur TEXT NOT NULL, -- Base64 data URI of creator signature
     statut VARCHAR(20) DEFAULT 'En attente' CHECK (statut IN ('En attente', 'Signe')),
+    decision VARCHAR(20) DEFAULT 'pending' CHECK (decision IN ('pending', 'accepted', 'declined')),
+    response_message TEXT,
+    response_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
