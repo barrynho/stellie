@@ -43,6 +43,10 @@ const SignContract = () => {
           } else if (data.contract.decision === 'declined') {
             setSubmittedDecision('declined');
           }
+          if (data.partner) {
+            setNom(data.partner.nom || '');
+            setPrenom(data.partner.prenom || '');
+          }
         } else {
           setError(data.message || 'Contrat introuvable.');
         }
@@ -111,7 +115,6 @@ const SignContract = () => {
   const handleDownloadPDF = () => {
     if (!contract) return;
 
-    setPdfGenerating(true);
     const element = document.getElementById('sign-contract-download');
     if (!element) {
       setPdfGenerating(false);
@@ -119,17 +122,17 @@ const SignContract = () => {
       return;
     }
 
+    setPdfGenerating(true);
+
     const opt = {
       margin: 0.3,
       filename: `Contrat_Amour_${contract.numero}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2.5, useCORS: true, logging: false },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
       jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
     };
 
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-    script.onload = () => {
+    const generate = () => {
       window.html2pdf().from(element).set(opt).save()
         .then(() => setPdfGenerating(false))
         .catch((err) => {
@@ -138,6 +141,15 @@ const SignContract = () => {
           setError('Erreur lors du téléchargement du PDF.');
         });
     };
+
+    if (window.html2pdf) {
+      generate();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    script.onload = generate;
     script.onerror = () => {
       setError("Erreur lors du chargement de l'outil PDF.");
       setPdfGenerating(false);
@@ -191,8 +203,8 @@ const SignContract = () => {
           <h2>{isAccepted ? 'Contrat accepté' : 'Contrat refusé'}</h2>
           <p style={{ color: 'var(--text-muted)', margin: '1rem 0 2rem' }}>
             {isAccepted
-              ? `Vous avez accepté le contrat de ${contract?.prenom_createur} ${contract?.nom_createur}. Le créateur voit maintenant l’état “Accepté”.`
-              : `Vous avez refusé le contrat de ${contract?.prenom_createur} ${contract?.nom_createur}. Le créateur voit maintenant l’état “Refusé”.`}
+              ? `Vous avez accepté le contrat de ${contract?.prenom_createur} ${contract?.nom_createur}. Le créateur voit maintenant l'état "Accepté".`
+              : `Vous avez refusé le contrat de ${contract?.prenom_createur} ${contract?.nom_createur}. Le créateur voit maintenant l'état "Refusé".`}
           </p>
           {isAccepted && (
             <div style={{ marginBottom: '1rem' }}>
@@ -201,7 +213,7 @@ const SignContract = () => {
               </button>
             </div>
           )}
-          <div id="sign-contract-download" style={{ position: 'absolute', left: '-9999px', top: '0', width: '794px', background: '#fff', color: '#111', padding: '24px', textAlign: 'left' }}>
+          <div id="sign-contract-download" style={{ position: 'fixed', left: '0', top: '0', width: '794px', opacity: 0, pointerEvents: 'none', zIndex: -9999, background: '#fff', color: '#111', padding: '24px', textAlign: 'left' }}>
             <h2 style={{ textAlign: 'center', fontSize: '1.5rem', marginBottom: '0.5rem' }}>Contrat d'Amour</h2>
             <p style={{ textAlign: 'center', marginBottom: '1rem' }}>Contrat N° : {contract?.numero}</p>
             <p><strong>Créé par :</strong> {contract?.prenom_createur} {contract?.nom_createur}</p>
@@ -320,7 +332,7 @@ const SignContract = () => {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginTop: '0.5rem' }}>
             <input type="checkbox" id="terms" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} style={{ marginTop: '4px', cursor: 'pointer' }} required />
             <label htmlFor="terms" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
-              J’accepte pleinement les termes de cet engagement et confirme l’authenticité de mes informations.
+              J'accepte pleinement les termes de cet engagement et confirme l'authenticité de mes informations.
             </label>
           </div>
 
