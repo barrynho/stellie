@@ -2,11 +2,35 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+const pool = require('./config/db');
 const authRoutes = require('./routes/auth');
 const contractRoutes = require('./routes/contracts');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+const ensureContractColumns = async () => {
+  try {
+    await pool.query("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS decision VARCHAR(20) DEFAULT 'pending'");
+    await pool.query("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS response_message TEXT");
+    await pool.query("ALTER TABLE contracts ADD COLUMN IF NOT EXISTS response_at TIMESTAMP WITH TIME ZONE");
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'contracts_decision_check'
+        ) THEN
+          ALTER TABLE contracts
+          ADD CONSTRAINT contracts_decision_check CHECK (decision IN ('pending', 'accepted', 'declined'));
+        END IF;
+      END $$;
+    `);
+  } catch (error) {
+    console.error('Unable to ensure contract decision columns:', error.message);
+  }
+};
+
+ensureContractColumns();
 
 // Enable CORS
 app.use(cors({

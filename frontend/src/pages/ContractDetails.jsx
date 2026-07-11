@@ -110,6 +110,9 @@ const ContractDetails = () => {
   }
 
   const isSigned = contract.statut === 'Signe';
+  const decision = contract.decision || 'pending';
+  const decisionLabel = decision === 'accepted' ? 'Accepté' : decision === 'declined' ? 'Refusé' : 'En attente';
+  const decisionClass = decision === 'accepted' ? 'status-accepted' : decision === 'declined' ? 'status-declined' : 'status-pending';
 
   // Get initials for wax seal (e.g. "J & M")
   const creatorInit = contract.prenom_createur.charAt(0).toUpperCase();
@@ -172,6 +175,10 @@ const ContractDetails = () => {
                 <p style={{ fontSize: '0.95rem', fontStyle: 'italic', color: '#555', marginTop: '2rem' }}>
                   Fait en foi de quoi, les partenaires apposent ci-dessous leurs signatures électroniques :
                 </p>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+                <span className={`status-badge ${decisionClass}`}>{decisionLabel}</span>
               </div>
 
               <div className="cert-signatures">

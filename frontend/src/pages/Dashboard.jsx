@@ -1,13 +1,16 @@
 import React, { useEffect, useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { Plus, Copy, Check, ExternalLink, Calendar, Users, Share2, LogOut, Heart } from 'lucide-react';
+import { Plus, Copy, Check, ExternalLink, Calendar, Users, Share2, LogOut, Heart, Pencil, Trash2 } from 'lucide-react';
 
 const Dashboard = () => {
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copiedId, setCopiedId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const { token, logout, API_URL } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -47,7 +50,7 @@ const Dashboard = () => {
   };
 
   const getShareLink = (contractToken) => {
-    return `${window.location.origin}/signer?token=${contractToken}`;
+    return `${window.location.origin}/#/signer?token=${contractToken}`;
   };
 
   const formatDate = (dateStr) => {
@@ -62,6 +65,47 @@ const Dashboard = () => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleDelete = async (contractId) => {
+    if (!window.confirm('Voulez-vous vraiment supprimer ce contrat ?')) return;
+    try {
+      const response = await fetch(`${API_URL}/api/contracts/${contractId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Suppression impossible');
+      setContracts(prev => prev.filter(item => item.id !== contractId));
+    } catch (err) {
+      setError(err.message || 'Erreur lors de la suppression');
+    }
+  };
+
+  const startEdit = (contract) => {
+    setEditingId(contract.id);
+    setDraft(contract.clauses || '');
+  };
+
+  const saveEdit = async (contractId) => {
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/api/contracts/${contractId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ clauses: draft })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Mise à jour impossible');
+      setContracts(prev => prev.map(item => item.id === contractId ? { ...item, clauses: draft } : item));
+      setEditingId(null);
+    } catch (err) {
+      setError(err.message || 'Erreur lors de la mise à jour');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -109,6 +153,8 @@ const Dashboard = () => {
               {contracts.map((contract) => {
                 const partnerSigned = contract.statut === 'Signe';
                 const shareLink = getShareLink(contract.token);
+                const decisionLabel = contract.decision === 'accepted' ? 'Accepté' : contract.decision === 'declined' ? 'Refusé' : 'En attente';
+                const decisionClass = contract.decision === 'accepted' ? 'status-accepted' : contract.decision === 'declined' ? 'status-declined' : 'status-pending';
                 return (
                   <div key={contract.id} className="contract-card">
                     <div className="contract-info">
@@ -127,6 +173,17 @@ const Dashboard = () => {
                           Relation : {formatDate(contract.date_relation)}
                         </span>
                       </div>
+
+                      {editingId === contract.id ? (
+                        <div className="share-box">
+                          <span className="share-title">Modifier les clauses</span>
+                          <textarea className="form-control" value={draft} onChange={(e) => setDraft(e.target.value)} rows="6" />
+                          <div className="share-buttons">
+                            <button className="btn btn-secondary" onClick={() => setEditingId(null)} disabled={saving}>Annuler</button>
+                            <button className="btn btn-primary" onClick={() => saveEdit(contract.id)} disabled={saving}>{saving ? 'Sauvegarde...' : 'Enregistrer'}</button>
+                          </div>
+                        </div>
+                      ) : null}
 
                       {/* Display share elements if pending */}
                       {!partnerSigned && (
@@ -180,12 +237,20 @@ const Dashboard = () => {
                       )}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
-                      <span className={`status-badge ${partnerSigned ? 'status-signed' : 'status-pending'}`}>
-                        {partnerSigned ? 'Signé' : 'En attente'}
+                      <span className={`status-badge ${partnerSigned ? 'status-signed' : decisionClass}`}>
+                        {partnerSigned ? 'Signé' : decisionLabel}
                       </span>
-                      <Link to={`/contracts/${contract.id}`} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-                        <ExternalLink size={14} /> Voir les détails
-                      </Link>
+                      <div className="action-row">
+                        <button onClick={() => startEdit(contract)} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                          <Pencil size={14} /> Modifier
+                        </button>
+                        <button onClick={() => handleDelete(contract.id)} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                          <Trash2 size={14} /> Supprimer
+                        </button>
+                        <Link to={`/contracts/${contract.id}`} className="btn btn-secondary" style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                          <ExternalLink size={14} /> Voir les détails
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 );
